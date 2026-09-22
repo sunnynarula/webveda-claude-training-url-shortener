@@ -15,15 +15,72 @@ comes from. Replace the comment with the real content once you reach that step.
 
 ## Run locally
 
-<!-- First at step 7 (slice 1): the real `docker compose` commands for Postgres
-     and Redis, and how to start the backend. Grows at step 14 (frontend) and
-     step 15 (the expired-link cleanup job). -->
+<!-- Grows at step 14 (frontend) and step 15 (the expired-link cleanup job). -->
+
+You need Docker with Compose v2, and [uv](https://docs.astral.sh/uv/), which
+installs the right Python (3.12) itself.
+
+1. **Start Postgres and Valkey** (a Redis-compatible store). Both listen on
+   `127.0.0.1` only.
+
+   ```bash
+   cp .env.example .env          # then set POSTGRES_PASSWORD in .env
+   docker compose up -d --wait
+   ```
+
+   The first start also creates `urlshortener_test`, the database the tests
+   use.
+
+2. **Configure and start the backend.**
+
+   ```bash
+   cd backend
+   cp .env.example .env          # put the same password in DATABASE_URL
+   uv sync
+   uv run python -m app          # serves http://127.0.0.1:8000, logging JSON
+   ```
+
+   From another terminal:
+
+   ```bash
+   curl -i http://127.0.0.1:8000/api/health/live
+   ```
+
+3. **Run every check CI runs** — lint, formatting, types, tests with branch
+   coverage, the suppression ratchet and the licence gate:
+
+   ```bash
+   scripts/check.sh
+   ```
+
+Stop the services with `docker compose down`, adding `-v` to delete the
+database volume too.
 
 ## Environment variables
 
-<!-- First at step 7: the .env.example files for backend and frontend. Grows as
-     slices add settings. The spec names FRONTEND_ORIGIN and REDIS_URL (§10);
-     the database variable's name is chosen when config.py is written. -->
+<!-- Grows as slices add settings, and at step 14 for the frontend. -->
+
+The backend reads these from the environment. In development it also reads
+`backend/.env`; copy [`backend/.env.example`](backend/.env.example) to make
+one. The tests never read either `.env` file.
+
+| Variable | Required | Default | What it's for |
+|---|---|---|---|
+| `DATABASE_URL` | yes | | Postgres connection URL. A Neon-style URL ending in `?sslmode=require&channel_binding=require` works as it is. |
+| `REDIS_URL` | yes | | The Valkey (or Redis) URL, for example `redis://localhost:6379/0`. |
+| `PUBLIC_BASE_URL` | yes | | The origin short links are built on, for example `https://sho.rt`. |
+| `FRONTEND_ORIGIN` | yes | | The one origin allowed to call the API from a browser (CORS). |
+| `LOG_LEVEL` | no | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
+| `HOST` | no | `127.0.0.1` | The address `python -m app` listens on. |
+| `PORT` | no | `8000` | The port `python -m app` listens on. |
+
+`PUBLIC_BASE_URL` and `FRONTEND_ORIGIN` must be bare origins: a scheme and a
+host with an optional port, and no path, query or fragment. They must use
+`https`, except that `http` is allowed for `localhost` and `127.0.0.1`. The
+app refuses to start otherwise.
+
+The root [`.env.example`](.env.example) holds the Compose variables
+(`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).
 
 ## Migrations
 
