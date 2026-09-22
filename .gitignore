@@ -27,3 +27,6 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Local review artefacts: diffs, recorded verdicts, waivers (see docs/PLAN.md §3)
+.review/
