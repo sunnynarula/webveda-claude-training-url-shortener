@@ -212,6 +212,7 @@ Run them in that order for every change: implement → Testing Agent → Verific
 - **Dedupe lookup** (`idx_urls_original_url_dedupe`) is a plain B-tree on `TEXT`. Fine at this scale; at real scale, hash the URL into a separate indexed column instead of indexing the raw text. *Resolved while planning: the dedupe index is on `url_hash` (ADR 0005).*
 - **Stats are public** for any code, since there's no auth. Deduplicated links share one set of stats, and link-preview bots inflate `click_count`.
 - **The SSRF check runs when a link is created.** It can't stop a domain whose DNS changes later, or a target that redirects onward (`docs/qna/007`).
+- **Database connections are encrypted but not authenticated.** The asyncpg driver can't do channel binding, and with `sslmode=require` it doesn't check the server's certificate, so a network attacker who can intercept the connection could pose as the database. Found while implementing slice 1; a candidate fix and the evidence are in ADR 0010. **Must be settled before the first real deployment (slice 9).**
 - **No multi-region / read replica story.** Single Postgres + single Redis instance — fine for this assignment, would need connection pooling and read replicas for real production traffic.
 
 ## 13. Stretch goals
