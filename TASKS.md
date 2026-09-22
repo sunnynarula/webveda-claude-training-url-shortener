@@ -112,17 +112,29 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 - the README sections Run locally and Environment variables
 
 *Loop*
-- [ ] 0 Branch
-- [ ] 1 Contract and skeleton
-- [ ] 2 RED
-- [ ] 3 GREEN
-- [ ] 4 REFACTOR
-- [ ] 5 README
+- [x] 0 Branch `feat/slice-1-skeleton`
+- [x] 1 Contract and skeleton (`ed0f74f`, `911c94a`)
+- [x] 2 RED — 54 tests, 52 failing, none erroring (`b7111d3`)
+- [x] 3 GREEN — 88 tests pass, 100% branch coverage (`5bf33ee`)
+- [x] 4 REFACTOR (`04ce27b`)
+- [x] 5 README — every command in it was run (`1162450`)
 - [ ] 6 Gates and held-out tests
 - [ ] 7 Reviews (verification + security, in parallel)
 - [ ] 8 Findings decided
 - [ ] 9 Push and PR
 - [ ] 10 CI green, merged
+
+*Found along the way — carried forward, not fixed here*
+- **Database connections are encrypted but not authenticated.** asyncpg
+  can't do channel binding and doesn't verify the certificate under
+  `sslmode=require`. Evidence and a candidate fix: ADR 0010. **Settle in
+  slice 9, before the first real deployment.** Also in `CLAUDE.md` §12 and
+  the slice 1 PR.
+- `red-check.py` counts a test that passes before the code exists as a
+  problem. Two of the RED tests legitimately pass, because the skeleton's
+  field declarations already make those settings required (see `b7111d3`).
+  If this recurs in later slices, the check needs a way to record the
+  exception rather than being argued with each time.
 
 ## Slices 2–9
 
