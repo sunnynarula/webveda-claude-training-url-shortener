@@ -4,6 +4,15 @@ Each slice runs the loop in `docs/PLAN.md` §2. The contract is written at the
 start of the slice and approved before RED. After `/clear`, say *"read
 TASKS.md and continue"*.
 
+**Where things are tracked.** This file holds the slice contracts and the loop
+steps: it is what the testing agent, the verification agent and the security
+reviewer read to learn what a slice promised. Everything else — bugs,
+decisions, work to schedule — goes to
+[GitHub Issues](https://github.com/sunnynarula/webveda-claude-training-url-shortener/issues),
+so a pull request can close an issue and anyone reading the repo can see what
+is open. Label each issue with the slice that settles it (`slice-1` …
+`slice-9`), and with `security` or `decision` where they apply.
+
 **Loop order note:** verdicts are recorded against a commit, so any commit
 made after the gates or reviews invalidates them. The README update therefore
 comes *before* the gates (see `docs/PLAN.md`, Amendments).
@@ -124,17 +133,19 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 - [ ] 9 Push and PR
 - [ ] 10 CI green, merged
 
-*Found along the way — carried forward, not fixed here*
-- **Database connections are encrypted but not authenticated.** asyncpg
-  can't do channel binding and doesn't verify the certificate under
-  `sslmode=require`. Evidence and a candidate fix: ADR 0010. **Settle in
-  slice 9, before the first real deployment.** Also in `CLAUDE.md` §12 and
-  the slice 1 PR.
-- `red-check.py` counts a test that passes before the code exists as a
-  problem. Two of the RED tests legitimately pass, because the skeleton's
-  field declarations already make those settings required (see `b7111d3`).
-  If this recurs in later slices, the check needs a way to record the
-  exception rather than being argued with each time.
+*Found along the way* — all filed as issues on 2026-09-23. The held-out
+tests found seven defects in what this slice ships and seven questions for
+later slices; two more came from reading source while implementing.
+
+- Open for **this** slice, awaiting the developer's decision: #1 #2 #3 #4
+  #5 #6 #7 (defects), #12 (contract wording).
+- Later slices: #14 (slice 3), #8 #10 (slice 4), #9 #13 (slice 6),
+  #11 #15 (slice 9). #15 must be settled before the first real deployment.
+- Process: #16, on `red-check.py` reporting a legitimate RED run as a
+  problem.
+
+The held-out tests that prove #1–#7 are written and parked; they land as
+the failing tests of whichever fixes are accepted.
 
 ## Slices 2–9
 

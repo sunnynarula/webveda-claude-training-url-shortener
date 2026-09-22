@@ -226,5 +226,6 @@ If the core app is working and passing its own tests, these are the next things 
 - Type hints everywhere; Pydantic for all request/response models; no raw SQL string building (SQLAlchemy Core/ORM only).
 - `ruff` + `mypy` clean, `eslint`/`prettier` clean.
 - Commits: conventional commits (`feat:`, `fix:`, `test:`, `chore:`).
+- **Issues live in GitHub Issues**, not in a file: bugs, decisions and work to schedule, labelled with the slice that settles them (`slice-1` … `slice-9`) plus `security` or `decision`. `TASKS.md` holds only the slice contracts and the loop, because the agents read it as the contract. A finding is filed before it is fixed, and a pull request closes its issue. **(assumed;** the developer asked for GitHub Issues on 2026-09-23.**)**
 - Make one concern per commit, with the lesson in the body. Merge PRs with a merge commit, never squash, so the history keeps the test-first sequence. **(assumed)**
 - Never commit `.env` files — only `.env.example`.
