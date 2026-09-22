@@ -1,0 +1,9 @@
+{
+  "coverage_omit": 0,
+  "noqa": 0,
+  "pragma_no_cover": 0,
+  "ruff_per_file_ignores": 2,
+  "skip": 0,
+  "type_ignore": 0,
+  "xfail": 0
+}
