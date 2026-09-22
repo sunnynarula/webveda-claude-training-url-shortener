@@ -2,6 +2,12 @@
 
 **Asked:** 2026-09-22 · **Updated:** 2026-09-22
 
+**Changed:** the first version recommended `is_global` as "one broad rule". Tests
+run while reviewing the build plan showed that's incomplete: `is_global` lets
+multicast and several IPv6 disguises of private addresses through. This version
+gives the full rule, and adds two problems the first version missed: hosts in
+international characters, and slow DNS.
+
 > What is the ssrf thing/check?
 
 ## Short answer
@@ -93,10 +99,45 @@ What that means for the code:
 - **Any hostname can point inward.** An attacker's own domain can resolve to
   `10.0.0.5`. That's why the spec says to resolve the host rather than trust
   the name.
-- **Use one broad rule.** In Python's `ipaddress` module, `is_global` was
-  False for every non-public address tested here, including the IPv6 form
-  `::ffff:169.254.169.254`. `is_link_local` on its own misses that one.
-  Keep all of these cases as tests.
+- **`is_global` alone is not enough.** On Python 3.12.3, `is_global` is
+  **True** for all of these, although each one is unsafe:
+
+  | Address | What it really is |
+  |---|---|
+  | `224.0.0.1` | multicast |
+  | `64:ff9b::a9fe:a9fe` | `169.254.169.254` wrapped in a NAT64 address |
+  | `::a9fe:a9fe` | `169.254.169.254` in the old IPv4-compatible IPv6 form |
+  | `::ffff:0:a9fe:a9fe` | `169.254.169.254` in the IPv4-translated form |
+  | `fec0::1` | a deprecated site-local address |
+
+- **The full rule** (the approved build plan uses this):
+  1. For IPv4, the address must be global **and** not multicast.
+  2. For IPv6, first unwrap any IPv4 address hidden inside it: IPv4-mapped
+     (`ipv4_mapped`), NAT64 (`64:ff9b::/96` and `64:ff9b:1::/48`), 6to4
+     (`sixtofour`) and Teredo (`teredo`). Check the unwrapped address with
+     rule 1.
+  3. Any other IPv6 address must be inside `2000::/3`, the global unicast
+     range, **and** global and not multicast. Being inside `2000::/3` rules
+     out all three IPv6 forms in the table.
+  4. Every address the host resolves to must pass. One private answer is
+     enough to reject the URL.
+
+  Keep every address above, and the ones earlier in this section, as tests.
+- **International hostnames.** Python's `getaddrinfo` converts a hostname
+  written in international characters with the old IDNA 2003 rules, but
+  browsers use UTS-46. Tested here, the two give different hosts for
+  `faß.de`: `fass.de` (Python) versus `xn--fa-hia.de` (browsers). So the
+  check would vet one server while visitors go to another.
+  - Convert the host once with the `idna` package (UTS-46).
+  - Resolve that converted host.
+  - Store and redirect that same ASCII URL.
+- **Slow DNS.** `loop.getaddrinfo` borrows asyncio's default thread pool,
+  which has 8 threads on this laptop. A timeout stops the *wait*, not the
+  thread, so an attacker whose nameserver answers slowly can tie up every
+  thread, and the database driver uses that same pool. Use a truly async
+  resolver such as `aiodns`, with a cap on how many lookups run at once.
+- **Pin the Python patch version.** `ipaddress`'s built-in tables have changed
+  between patch releases, so the tests should run on the version you deploy.
 - **Keep it async.** `socket.getaddrinfo` blocks the event loop. This backend
   is fully async (§2), so use asyncio's `loop.getaddrinfo` instead.
 
@@ -136,6 +177,13 @@ They belong in the README's known-limitations section.
   above, and `ipaddress` flags for `169.254.169.254`, `10.0.0.5`,
   `192.168.1.1`, `127.0.0.1`, `::1`, `::ffff:169.254.169.254`, `0.0.0.0` and
   `8.8.8.8` (only `8.8.8.8` has `is_global` True).
+- Update runs on Python 3.12.3:
+  - `is_global`, `is_multicast`, `sixtofour`, `teredo` and membership of
+    `2000::/3` for the addresses in the table above, plus the 6to4 address
+    `2002:a9fe:a9fe::1` (unwraps to `169.254.169.254`) and a Teredo address.
+  - `"faß.de".encode("idna")` gives `fass.de`, while `idna.encode("faß.de",
+    uts46=True)` gives `xn--fa-hia.de`.
+  - The default thread pool size here is min(32, cores + 4) = 8.
 - **Not verified here:** that the metadata service returns credentials (that
   comes from the providers' documentation, not a test), and the behaviour of
   Python versions other than 3.12.3.
