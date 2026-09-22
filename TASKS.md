@@ -33,12 +33,17 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 
 *Interface*
 - `create_app(settings: Settings | None = None) -> FastAPI` in
-  `app/main.py`. Run it with `uvicorn app.main:create_app --factory`.
+  `app/main.py`. Run it with `uvicorn app.main:create_app --factory`, or with
+  `python -m app`, which serves on `Settings.host`:`Settings.port` with JSON
+  logging.
+- `app.config.Settings` (pydantic-settings). Tests always construct it as
+  `Settings(_env_file=None, ...)` and never read a developer's `.env`.
 - `GET /api/health/live` returns 200 `{"status": "ok"}`.
 - Settings, read from the environment:
   - required: `DATABASE_URL`, `REDIS_URL`, `PUBLIC_BASE_URL`,
     `FRONTEND_ORIGIN`
-  - optional: `LOG_LEVEL` (default `INFO`)
+  - optional: `LOG_LEVEL` (default `INFO`), `HOST` (default `127.0.0.1`),
+    `PORT` (default `8000`)
   - `PUBLIC_BASE_URL` and `FRONTEND_ORIGIN` must be bare origins: a scheme
     and host, with an optional port, and no path, query or fragment. They
     must be `https`, except that `http` is allowed for `localhost` and
@@ -61,9 +66,9 @@ proceed without a separate approval stop, so it can be reviewed at any time.
   - maps `sslmode` values `require`, `verify-ca` and `verify-full` to TLS in
     `connect_args`
   - returns a `postgresql+asyncpg://` URL
-- Test-database guard: tests refuse a `TEST_DATABASE_URL` whose database name
-  doesn't end in `_test`, or whose host isn't `localhost`, `127.0.0.1` or
-  `postgres` (the CI service).
+- Test-database guard: `testsupport.db_guard.ensure_safe_test_database_url(url)`
+  raises `UnsafeTestDatabaseError` unless the database name ends in `_test` and
+  the host is `localhost`, `127.0.0.1`, `::1` or `postgres` (the CI service).
 
 *Acceptance tests*
 1. With valid settings the app boots, and `GET /api/health/live` returns 200
