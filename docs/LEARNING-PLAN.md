@@ -79,6 +79,7 @@ atomic click counter matter. If it can't, re-read `CLAUDE.md` §6 together.
   - It skips your global `CLAUDE.md` (`omitClaudeMd`).
   - It reviews every slice later on, not just the plan (`docs/PLAN.md` §3).
 - Run them **in parallel** on `docs/PLAN.md`, telling them to report only gaps that affect correctness or the requirements. Record Fable's real token use.
+- *Changed by decision on 2026-09-22 (`docs/PLAN.md`, Amendments): the plan review was skipped, because four expert reviews had already covered it. Only the `security-reviewer` was created, and its first run is on slice 1.*
 - Decide what to change, two rounds at most. Commit the reviewers and the plan revisions.
 
 **Explore:**

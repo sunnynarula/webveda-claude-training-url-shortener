@@ -521,3 +521,22 @@ Dependabot security updates get turned on, with a `dependabot.yml` cooldown.
   - Docker cost measured
   - the production standard and the commercial goal honoured
 - **Challenged:** the plan is much longer than the first draft. That's deliberate, because the production standard and max-effort review were asked for. The plain-terms section is still the part to read first.
+
+---
+
+## Amendments after approval (2026-09-22)
+
+1. **The step 5 plan review is skipped** (the developer's decision). Four
+   reviews already covered this plan. The security-reviewer's first run is on
+   slice 1's diff, which also measures its cost.
+2. **No reliability-reviewer** (the developer's decision). The DevOps and
+   architect reviews covered reliability, and it had no job after step 5.
+3. **The push-agent never commits.** §7 item 9 said "commit only leftovers",
+   but verdicts are bound to `HEAD`, so a commit after the reviews would push
+   unreviewed code. The push-agent refuses to run with uncommitted changes
+   instead.
+4. **The README moves before the gates** in the §2 loop: README is now step
+   5, and gates and held-out tests are step 6. The reason is the same:
+   verdicts must be recorded on the final commit.
+5. **The frozen-files hook asks rather than blocks,** and it allows *creating*
+   a gate file that doesn't exist yet, because there's nothing to protect yet.
