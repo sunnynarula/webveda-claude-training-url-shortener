@@ -1,0 +1,34 @@
+Licensing of this repository
+============================
+
+This repository contains files under two different licences.
+
+
+1. Course files: MIT License
+----------------------------
+
+Copyright (c) 2026 TrainWithShubham
+Full licence text: LICENSE-COURSE
+Source: https://github.com/TrainWithShubham/claude-code-zero-to-hero (labs/)
+
+Covers these files, including any changes made to them in this repository:
+
+  CLAUDE.md
+  ASSIGNMENT.md                          (the course's labs/README.md, renamed)
+  .claude/agents/testing-agent.md
+  .claude/agents/verification-agent.md
+  .claude/agents/push-agent.md
+
+
+2. Everything else: PolyForm Strict License 1.0.0
+-------------------------------------------------
+
+Copyright (c) 2026 Sunny Narula (https://github.com/sunnynarula)
+Full licence text: LICENSE
+
+The licence allows use for noncommercial purposes only: personal use,
+and use by the noncommercial organisations the licence lists. It does not
+give anyone the right to change the software or to distribute it.
+
+For any other use, including commercial use, ask the copyright holder for
+a separate licence.
