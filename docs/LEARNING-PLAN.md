@@ -25,7 +25,7 @@ The GitHub repo is public and tagged `training`. The agents are in
 `.claude/agents/`. `LICENSE-COURSE` covers the course files, and `LICENSE`
 (PolyForm Strict) covers the rest.
 
-### Step 1: Restart and see what Claude loads
+### Step 1: Restart and see what Claude loads (done)
 **Do:**
 - `/exit`, then start plain `claude` in the repo root.
 - Ask *"which agent types do you have?"*
