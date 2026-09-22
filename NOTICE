@@ -20,15 +20,22 @@ Covers these files, including any changes made to them in this repository:
   .claude/agents/push-agent.md
 
 
-2. Everything else: PolyForm Strict License 1.0.0
--------------------------------------------------
+2. Everything else: PolyForm Noncommercial License 1.0.0
+--------------------------------------------------------
 
-Copyright (c) 2026 Sunny Narula (https://github.com/sunnynarula)
+Required Notice: Copyright (c) 2026 Sunny Narula (https://github.com/sunnynarula)
 Full licence text: LICENSE
 
-The licence allows use for noncommercial purposes only: personal use,
-and use by the noncommercial organisations the licence lists. It does not
-give anyone the right to change the software or to distribute it.
+The licence allows any noncommercial purpose: personal use, research,
+hobby projects, and use by the noncommercial organisations the licence
+lists (charities, schools, public research, government). For those
+purposes you may use the software, change it and share it, as long as
+anyone who gets a copy also gets the licence terms and the Required
+Notice line above.
 
-For any other use, including commercial use, ask the copyright holder for
-a separate licence.
+Commercial use is not covered. To use the software commercially, ask the
+copyright holder for a commercial licence by opening an issue:
+https://github.com/sunnynarula/webveda-claude-training-url-shortener/issues
+
+Versions of this repository published before this change were under the
+PolyForm Strict License 1.0.0.

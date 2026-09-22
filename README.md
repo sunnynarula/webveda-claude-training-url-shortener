@@ -67,6 +67,20 @@ comes from. Replace the comment with the real content once you reach that step.
 
 ## License
 
-<!-- Available now. Two licences, explained in NOTICE: MIT for the course's
-     files (LICENSE-COURSE) and PolyForm Strict 1.0.0 for everything else
-     (LICENSE). -->
+- **Course files** (`CLAUDE.md`, `ASSIGNMENT.md`, `.claude/agents/testing-agent.md`,
+  `verification-agent.md`, `push-agent.md`) are MIT-licensed by the course's
+  author. See [`LICENSE-COURSE`](LICENSE-COURSE).
+- **Everything else** is under the
+  [PolyForm Noncommercial License 1.0.0](LICENSE). It's free for any
+  noncommercial purpose: you may use it, change it and share it, as long as
+  the licence and its `Required Notice:` line go with every copy.
+- **Commercial use** needs a separate licence.
+  [Open an issue](https://github.com/sunnynarula/webveda-claude-training-url-shortener/issues)
+  to ask for one.
+- **Credit:** if you show, demo or write about this project, please credit
+  Sunny Narula and link to this repository.
+- **Contributions:** outside pull requests need a signed Contributor License
+  Agreement (CLA) first, so the project can keep offering commercial licences.
+  Until the CLA is set up, please open an issue instead of a pull request.
+
+[`NOTICE`](NOTICE) lists exactly which files are under which licence.
