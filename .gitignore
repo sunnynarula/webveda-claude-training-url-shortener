@@ -1,0 +1,29 @@
+# Secrets: only .env.example is ever committed (CLAUDE.md §10, §14)
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+dist/
+
+# Per-machine Claude Code files: they would leak local paths and
+# permission history (the course repo ignores both for the same reason)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
