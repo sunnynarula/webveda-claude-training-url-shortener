@@ -14,17 +14,31 @@ _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
 def bare_origin(value: str) -> str:
-    """Accept a bare origin (scheme, host, optional port) and return it without a
-    trailing slash. https is required, except for local hosts."""
+    """Rebuild a bare origin (scheme, host, optional port) from the parts that were
+    checked. https is required, except for the local hosts.
+
+    The value returned is built from those parts rather than echoed back (ADR 0012).
+    `urlsplit` deletes tabs and newlines anywhere in a URL and trims leading
+    whitespace before parsing, and lower-cases the host only in its own view of it,
+    so returning the caller's string would store something we never validated.
+    """
+    if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
+        raise ValueError("must not contain spaces or control characters")
     parts = urlsplit(value)
-    if parts.scheme not in {"http", "https"} or not parts.hostname:
+    host = parts.hostname  # lower-cased, and without the brackets of an IPv6 literal
+    if parts.scheme not in {"http", "https"} or not host:
         raise ValueError("must be an http(s) origin such as https://example.com")
-    if parts.path not in {"", "/"} or parts.query or parts.fragment or parts.username:
-        raise ValueError("must be a bare origin: no path, query, fragment or credentials")
-    if parts.scheme == "http" and parts.hostname not in _LOCAL_HOSTS:
-        raise ValueError("must use https (plain http is allowed only for localhost)")
-    _ = parts.port  # raises ValueError for a malformed or out-of-range port
-    return value.rstrip("/")
+    if parts.path not in {"", "/"} or parts.query or parts.fragment:
+        raise ValueError("must be a bare origin: no path, query or fragment")
+    if parts.username or parts.password:
+        raise ValueError("must not carry credentials")
+    if parts.scheme == "http" and host not in _LOCAL_HOSTS:
+        raise ValueError("must use https (plain http is allowed only for the local hosts)")
+    port = parts.port  # raises ValueError for a malformed or out-of-range port
+    if port == 0:
+        raise ValueError("port 0 means 'any free port' and cannot be reached")
+    authority = f"[{host}]" if ":" in host else host  # put an IPv6 literal back in brackets
+    return f"{parts.scheme}://{authority}" + (f":{port}" if port is not None else "")
 
 
 class Settings(BaseSettings):
@@ -39,6 +53,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
+
+    @field_validator("database_url", "redis_url")
+    @classmethod
+    def _must_not_be_blank(cls, value: str) -> str:
+        """`DATABASE_URL=` in a deployment is a variable somebody forgot to fill in.
+        Caught here it names itself; caught on first use it is a connection error
+        during someone's request. What each URL must *contain* is checked in slice 2,
+        where the app first connects."""
+        if not value.strip():
+            raise ValueError("must not be empty")
+        if value != value.strip():
+            raise ValueError("must not be padded with whitespace")
+        return value
 
     @field_validator("public_base_url", "frontend_origin")
     @classmethod
