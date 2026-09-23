@@ -10,7 +10,7 @@ name at startup. Nothing is passed through, and nothing is dropped in silence.
 import ssl
 from urllib.parse import parse_qsl, urlsplit
 
-from sqlalchemy.engine import make_url
+from sqlalchemy.engine import URL, make_url
 
 _SSL_MODES = frozenset({"disable", "allow", "prefer", "require", "verify-ca", "verify-full"})
 # The modes that insist on TLS. For these we verify the server's certificate, which
@@ -18,9 +18,15 @@ _SSL_MODES = frozenset({"disable", "allow", "prefer", "require", "verify-ca", "v
 _TLS_REQUIRED = frozenset({"require", "verify-ca", "verify-full"})
 
 
-def asyncpg_url_and_args(url: str) -> tuple[str, dict[str, object]]:
+def asyncpg_url_and_args(url: str) -> tuple[URL, dict[str, object]]:
     """Return a `postgresql+asyncpg://` URL with no query string, plus the
-    `connect_args` that carry what the query string asked for."""
+    `connect_args` that carry what the query string asked for.
+
+    A `URL` rather than a string, so the password is masked by default wherever the
+    value is printed — a log line, a `repr`, a traceback (issue #17). Somewhere that
+    genuinely needs the text calls `render_as_string(hide_password=False)` and is
+    visible in review; `create_async_engine` takes the object as it is.
+    """
     parts = urlsplit(url)
     if parts.fragment:
         # libpq has no fragments: everything after '#' is part of the URL to it, and
@@ -83,5 +89,4 @@ def asyncpg_url_and_args(url: str) -> tuple[str, dict[str, object]]:
     if server_settings:
         connect_args["server_settings"] = server_settings
 
-    cleaned = make_url(url).set(drivername="postgresql+asyncpg", query={})
-    return cleaned.render_as_string(hide_password=False), connect_args
+    return make_url(url).set(drivername="postgresql+asyncpg", query={}), connect_args

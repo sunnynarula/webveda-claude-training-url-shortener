@@ -72,8 +72,10 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 - Logs are one JSON object per line, uvicorn's own lines included. One access
   line per request records `event="request"`, `request_id`, `method`, `route`
   (the template, never the query string), `status` and `duration_ms`.
-- `app.database.asyncpg_url_and_args(url) -> (url, connect_args)` returns a
-  `postgresql+asyncpg://` URL with no query string. Every query parameter is
+- `app.database.asyncpg_url_and_args(url) -> (URL, connect_args)` returns
+  SQLAlchemy's `URL` object — not a string, so the password is masked wherever
+  the value is printed (issue #17) — with the `postgresql+asyncpg` driver and
+  no query string. Every query parameter is
   translated or refused, never passed through (issue #11, ADR 0012):
   - `sslmode` `require`, `verify-ca`, `verify-full` become an `SSLContext`
     that verifies the chain and the hostname (issue #15); `disable`, `allow`
@@ -149,14 +151,14 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 tests found seven defects in what this slice ships and seven questions for
 later slices; two more came from reading source while implementing.
 
-- **Fixed in this slice:** #1 #2 #3 #4 #5 #6 #7 #8 #10 #11 #12 #15. Each
+- **Fixed in this slice:** #1 #2 #3 #4 #5 #6 #7 #8 #10 #11 #12 #15 #17. Each
   has a regression test named after it in
   `backend/tests/unit/test_regressions.py`, checked by reverting the fixes
   and confirming the right tests fail.
-- **Blocked, needs a decision:** #17 — returning the database URL as
-  SQLAlchemy's masking object instead of a plain string collides with a
-  frozen acceptance test from RED, which asserts a string carrying the
-  password.
+- **#17 fixed with the developer's agreement to change a frozen test.** The
+  RED contract said the function returns a string; it now returns
+  SQLAlchemy's `URL`, which masks the password when printed. Acceptance test
+  4 changed with it, and says so in a comment.
 - **Deferred to the slice that owns them:** #14 (slice 3), #9 #13
   (slice 6), #18 (low). Their held-out tests are parked with a note.
 - **Process:** #16, on `red-check.py` reporting a legitimate RED run as a

@@ -127,6 +127,18 @@ def test_issue_12_plain_http_is_allowed_on_the_ipv6_loopback() -> None:
     assert bare_origin("http://[::1]:5173") == "http://[::1]:5173"
 
 
+def test_issue_17_the_database_url_hides_its_password_when_printed() -> None:
+    """It was returned as a plain string, so the password was one log line away from a
+    log aggregator. A URL object masks it in every str(), repr() and traceback."""
+    url, _ = asyncpg_url_and_args("postgresql://app_user:SuperSecret123@db.example.com/app")
+
+    assert "SuperSecret123" not in str(url)
+    assert "SuperSecret123" not in repr(url)
+    assert "SuperSecret123" not in f"connecting to {url}"
+    # Still available where it is genuinely needed, by asking for it in the open.
+    assert url.render_as_string(hide_password=False).count("SuperSecret123") == 1
+
+
 @pytest.mark.parametrize("mode", ["require", "verify-ca", "verify-full"])
 def test_issue_15_a_mode_that_requires_tls_verifies_the_certificate(mode: str) -> None:
     """asyncpg cannot do channel binding, so verifying the certificate is the only

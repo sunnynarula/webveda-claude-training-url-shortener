@@ -9,7 +9,6 @@ raw Neon URL too. So the tests also check each connect argument against asyncpg'
 
 import inspect
 import ssl
-from urllib.parse import urlsplit
 
 import asyncpg
 import pytest
@@ -48,8 +47,11 @@ def requires_tls(value: object) -> bool:
 def test_neon_url_becomes_asyncpg_url_without_query_and_with_tls(sslmode: str) -> None:
     url, connect_args = asyncpg_url_and_args(NEON_URL.format(sslmode=sslmode))
 
-    assert url.startswith("postgresql+asyncpg://"), url
-    assert "?" not in url and urlsplit(url).query == "", f"query string left in {url}"
+    # A URL object, not a string: it masks the password wherever it is printed (issue
+    # #17). Changed here with the developer's agreement, RED's contract having said str.
+    assert url.drivername == "postgresql+asyncpg", url
+    assert not url.query, f"query string left in {url}"
+    assert "pw" not in str(url), f"the password is printed in the open: {url}"
     parsed = make_url(url)
     assert (parsed.username, parsed.password, parsed.host, parsed.database) == (
         "user",
@@ -69,7 +71,7 @@ def test_neon_url_becomes_asyncpg_url_without_query_and_with_tls(sslmode: str) -
 def test_plain_local_url_becomes_asyncpg_url_without_tls() -> None:
     url, connect_args = asyncpg_url_and_args(LOCAL_URL)
 
-    assert url.startswith("postgresql+asyncpg://"), url
+    assert url.drivername == "postgresql+asyncpg", url
     parsed = make_url(url)
     assert (parsed.username, parsed.password, parsed.host, parsed.port, parsed.database) == (
         "u",

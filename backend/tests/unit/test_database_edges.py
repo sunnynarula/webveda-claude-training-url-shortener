@@ -7,13 +7,15 @@ from app.database import asyncpg_url_and_args
 
 def test_url_without_sslmode_gets_no_connect_args() -> None:
     url, args = asyncpg_url_and_args("postgresql://u:p@localhost:5432/db")
-    assert url == "postgresql+asyncpg://u:p@localhost:5432/db"
+    assert url.render_as_string(hide_password=False) == "postgresql+asyncpg://u:p@localhost:5432/db"
     assert args == {}
 
 
 def test_password_survives_the_round_trip() -> None:
     url, _ = asyncpg_url_and_args("postgresql://u:s%40cret@localhost/db")
-    assert url == "postgresql+asyncpg://u:s%40cret@localhost/db"
+    assert (
+        url.render_as_string(hide_password=False) == "postgresql+asyncpg://u:s%40cret@localhost/db"
+    )
 
 
 def test_a_parameter_asyncpg_understands_is_translated_not_passed_through() -> None:
@@ -21,7 +23,7 @@ def test_a_parameter_asyncpg_understands_is_translated_not_passed_through() -> N
     showed that SQLAlchemy hands every one of them to asyncpg.connect, which has no
     **kwargs, so keeping them meant a TypeError on the first connection in production."""
     url, args = asyncpg_url_and_args("postgresql://u:p@h/db?sslmode=disable&application_name=x")
-    assert url == "postgresql+asyncpg://u:p@h/db"
+    assert not url.query
     assert args["server_settings"] == {"application_name": "x"}
 
 
