@@ -60,3 +60,9 @@ def test_origin_edge_cases_are_rejected(value: str) -> None:
 
 def test_http_is_allowed_for_ipv6_loopback() -> None:
     assert bare_origin("http://[::1]:5173") == "http://[::1]:5173"
+
+
+def test_a_required_setting_padded_with_whitespace_is_rejected() -> None:
+    """A .env line written as `DATABASE_URL= postgresql://…` is a typo, not a value."""
+    with pytest.raises(ValidationError, match="whitespace"):
+        make(database_url=" postgresql://u:p@localhost/db ")

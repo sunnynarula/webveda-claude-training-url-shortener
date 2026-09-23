@@ -42,3 +42,20 @@ def test_non_tls_sslmode_passes_through() -> None:
 def test_unusable_sslmode_is_rejected(query: str) -> None:
     with pytest.raises(ValueError, match="sslmode"):
         asyncpg_url_and_args(f"postgresql://u:p@h/db?{query}")
+
+
+def test_a_fragment_in_a_database_url_is_refused() -> None:
+    """libpq has no fragments, so our reading of the URL and the client's would differ."""
+    with pytest.raises(ValueError, match="#"):
+        asyncpg_url_and_args("postgresql://u:p@h/db#?dbname=other")
+
+
+def test_a_connect_timeout_that_is_not_a_number_is_refused() -> None:
+    with pytest.raises(ValueError, match="connect_timeout"):
+        asyncpg_url_and_args("postgresql://u:p@h/db?connect_timeout=soon")
+
+
+def test_sslrootcert_is_refused_with_an_explanation() -> None:
+    """Honouring it would make this function read a file (issue #15's triage)."""
+    with pytest.raises(ValueError, match="system trust store"):
+        asyncpg_url_and_args("postgresql://u:p@h/db?sslmode=verify-full&sslrootcert=/ca.pem")
