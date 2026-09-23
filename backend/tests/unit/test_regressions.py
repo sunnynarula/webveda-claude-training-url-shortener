@@ -6,16 +6,23 @@ marker named when an issue is closed: revert a fix and the test that fails tells
 which issue came back. Each test is the smallest reproduction of the original report.
 """
 
+import contextlib
+import io
+import json
 import logging
 import ssl
+import sys
+from collections.abc import Iterator
 
 import httpx
 import pytest
 from asgi_lifespan import LifespanManager
+from fastapi import Request
 from pydantic import ValidationError
 
 from app.config import Settings, bare_origin
 from app.database import asyncpg_url_and_args
+from app.logging_config import configure_logging
 from app.main import create_app
 from testsupport.db_guard import UnsafeTestDatabaseError, ensure_safe_test_database_url
 
@@ -174,3 +181,69 @@ def test_issue_18_building_the_app_leaves_the_processs_logging_alone() -> None:
         assert root.handlers == [marker], "create_app replaced the caller's log handlers"
     finally:
         root.handlers = original
+
+
+def _settings(**overrides: object) -> Settings:
+    values: dict[str, object] = {
+        "database_url": "postgresql://u:p@localhost/db",
+        "redis_url": "redis://localhost:6379/0",
+        "public_base_url": "https://sho.rt",
+        "frontend_origin": "https://app.sho.rt",
+    }
+    values.update(overrides)
+    return Settings(_env_file=None, **values)
+
+
+@contextlib.contextmanager
+def capturing_logs() -> Iterator[io.StringIO]:
+    """Bind the log handlers to a buffer we can read. configure_logging resolves
+    `ext://sys.stdout` when it runs, so the swap has to happen first."""
+    buffer = io.StringIO()
+    original = sys.stdout
+    sys.stdout = buffer
+    try:
+        configure_logging("INFO")
+        yield buffer
+    finally:
+        sys.stdout = original
+        configure_logging("INFO")
+
+
+async def test_issue_19_a_head_request_is_logged_with_its_route_and_method() -> None:
+    """The middleware passed a copy of the request on, so the router recorded the route
+    it matched on the copy and the access log, reading the original, said "(unmatched)".
+    Monitors use HEAD, and in slice 4 every link-preview bot would have looked like a
+    404 in the logs."""
+    with capturing_logs() as log_stream:
+        app = create_app(_settings())
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.head("/api/health/live")
+
+    access = [
+        json.loads(line)
+        for line in log_stream.getvalue().splitlines()
+        if line.strip().startswith("{") and json.loads(line).get("event") == "request"
+    ]
+    assert len(access) == 1, access
+    assert access[0]["route"] == "/api/health/live"
+    assert access[0]["method"] == "HEAD", "the access line must say what was asked for"
+
+
+async def test_issue_19_a_route_can_tell_a_head_request_from_a_get() -> None:
+    """CLAUDE.md section 6 requires slice 4 to answer HEAD without counting a click. The
+    route has to be able to tell, and with the method rewritten it could not."""
+    app = create_app(_settings())
+    seen: list[bool] = []
+
+    @app.get("/_probe/head")
+    async def probe(request: Request) -> dict[str, str]:
+        seen.append(bool(getattr(request.state, "head_request", False)))
+        return {"status": "ok"}
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.get("/_probe/head")
+        await client.head("/_probe/head")
+
+    assert seen == [False, True]

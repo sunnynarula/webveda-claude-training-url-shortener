@@ -120,8 +120,17 @@ class HeadAsGetMiddleware:
                 message = {**message, "body": b"", "more_body": False}
             await send(message)
 
-        # The outer scope still says HEAD, so the access log records what was asked for.
-        await self.app({**scope, "method": "GET"}, receive, send_without_body)
+        # The same scope, swapped and swapped back — not a copy. The router records the
+        # route it matched on the scope it was handed, so a copy would keep the route
+        # template from the access log, and every HEAD would read as "(unmatched)".
+        scope["method"] = "GET"
+        # A route that must behave differently for HEAD reads request.state.head_request:
+        # slice 4's redirect answers HEAD without counting a click (CLAUDE.md §6).
+        scope.setdefault("state", {})["head_request"] = True
+        try:
+            await self.app(scope, receive, send_without_body)
+        finally:
+            scope["method"] = "HEAD"  # so the access line says what was asked for
 
 
 class CatchAllMiddleware:
