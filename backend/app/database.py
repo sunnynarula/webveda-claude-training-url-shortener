@@ -12,6 +12,14 @@ from urllib.parse import parse_qsl, urlsplit
 
 from sqlalchemy.engine import URL, make_url
 
+# The drivers we accept. Everything else is refused rather than rewritten, so a URL for
+# another kind of database fails at startup and names itself (issue #24).
+_POSTGRES_DRIVERS = frozenset(
+    {"postgres", "postgresql", "postgresql+asyncpg", "postgresql+psycopg", "postgresql+psycopg2"}
+)
+# Hosts where development runs without TLS at all. Anywhere else, TLS is verified even
+# when the URL does not ask for it (issue #20).
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _SSL_MODES = frozenset({"disable", "allow", "prefer", "require", "verify-ca", "verify-full"})
 # The modes that insist on TLS. For these we verify the server's certificate, which
 # libpq's "require" does not do — see the note in ADR 0010 about channel binding.
@@ -28,6 +36,11 @@ def asyncpg_url_and_args(url: str) -> tuple[URL, dict[str, object]]:
     visible in review; `create_async_engine` takes the object as it is.
     """
     parts = urlsplit(url)
+    if parts.scheme not in _POSTGRES_DRIVERS:
+        raise ValueError(
+            f"{parts.scheme!r} is not a PostgreSQL URL; expected one of "
+            f"{', '.join(sorted(_POSTGRES_DRIVERS))}"
+        )
     if parts.fragment:
         # libpq has no fragments: everything after '#' is part of the URL to it, and
         # a '?' after it still begins the parameter list (ADR 0012).
@@ -57,9 +70,11 @@ def asyncpg_url_and_args(url: str) -> tuple[URL, dict[str, object]]:
     sslmode = take("sslmode")
     if sslmode is not None and sslmode not in _SSL_MODES:
         raise ValueError(f"sslmode must be one of {', '.join(sorted(_SSL_MODES))}")
-    if sslmode in _TLS_REQUIRED:
-        # Verifies the certificate chain and the hostname against the system trust
-        # store. Stricter than libpq's "require", deliberately (issue #15).
+    if sslmode in _TLS_REQUIRED or (sslmode is None and parts.hostname not in _LOCAL_HOSTS):
+        # Verifies the certificate chain and the hostname against the system trust store.
+        # Stricter than libpq's "require", deliberately (issue #15) - and used when the
+        # URL says nothing at all, because absence is not consent (issue #20). A server
+        # without a public certificate needs an explicit sslmode saying so.
         connect_args["ssl"] = ssl.create_default_context()
     elif sslmode is not None:
         connect_args["ssl"] = sslmode  # disable / allow / prefer keep libpq's meaning
@@ -70,9 +85,14 @@ def asyncpg_url_and_args(url: str) -> tuple[URL, dict[str, object]]:
         server_settings["application_name"] = application_name
     if (connect_timeout := take("connect_timeout")) is not None:
         try:
-            connect_args["timeout"] = float(connect_timeout)
+            seconds = float(connect_timeout)
         except ValueError:
             raise ValueError("connect_timeout must be a number of seconds") from None
+        # float() accepts inf and nan, and libpq's 0 means "wait forever" where asyncpg
+        # reads it as "give up at once" - the opposite of the intent (issue #23).
+        if not 0 < seconds < float("inf"):
+            raise ValueError("connect_timeout must be a finite number of seconds above 0")
+        connect_args["timeout"] = seconds
     if (session_attrs := take("target_session_attrs")) is not None:
         # asyncpg takes this one under its own name, and validates the value itself.
         connect_args["target_session_attrs"] = session_attrs

@@ -33,7 +33,7 @@ NEON = "postgresql://user:pw@ep-x-pooler.eu-central-1.aws.neon.tech/neondb"
 def test_issue_1_an_origin_never_keeps_an_invisible_character() -> None:
     """A trailing newline parsed clean and was stored, because the value returned was
     the caller's string rather than the one that had been validated."""
-    with pytest.raises(ValueError, match="control characters"):
+    with pytest.raises(ValueError, match="printable ASCII"):
         bare_origin("https://sho.rt\n")
     assert "\t" not in bare_origin("https://sho.rt")
 
@@ -247,3 +247,69 @@ async def test_issue_19_a_route_can_tell_a_head_request_from_a_get() -> None:
         await client.head("/_probe/head")
 
     assert seen == [False, True]
+
+
+def test_issue_20_a_remote_database_with_no_sslmode_still_verifies() -> None:
+    """A Neon address copied without its query string connected with unverified TLS and
+    fell back to plaintext in silence. Absence is not consent (ADR 0012 rule 3)."""
+    _, connect_args = asyncpg_url_and_args("postgresql://u:p@ep-x.neon.tech/neondb")
+
+    context = connect_args["ssl"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname
+
+
+def test_issue_20_a_local_database_is_left_alone() -> None:
+    """Development has no TLS at all, so loopback keeps the permissive default."""
+    _, connect_args = asyncpg_url_and_args("postgresql://u:p@localhost:5432/urlshortener")
+
+    assert "ssl" not in connect_args
+
+
+def test_issue_21_a_rejected_setting_never_prints_its_value() -> None:
+    """The error text went to the startup log, password and all - issue #17 one layer
+    earlier, at the moment most likely to be pasted into a ticket."""
+    with pytest.raises(ValidationError) as caught:
+        _settings(database_url="postgresql://app:S3CRET@db.example.com/app ")
+
+    assert "S3CRET" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        pytest.param(
+            "postgresql://u:p@localhost:5433,db.prod.example.com:5432/urlshortener_test",
+            id="host-list-with-ports",
+        ),
+        pytest.param("postgresql://u:p@localhost,db.prod.example.com/x_test", id="host-list"),
+        pytest.param("postgresql://u:p@localhost:not-a-port/x_test", id="unreadable-port"),
+    ],
+)
+def test_issue_22_a_host_list_cannot_smuggle_a_second_server_past_the_guard(url: str) -> None:
+    """libpq and asyncpg try each host in turn. Python reads the host as the text up to
+    the first colon, so the guard saw only `localhost` and approved production."""
+    with pytest.raises(UnsafeTestDatabaseError):
+        ensure_safe_test_database_url(url)
+
+
+@pytest.mark.parametrize("value", ["inf", "nan", "0", "-5"])
+def test_issue_23_an_unusable_connect_timeout_is_refused(value: str) -> None:
+    """`0` means "wait forever" to the standard client and "give up at once" to asyncpg."""
+    with pytest.raises(ValueError, match="connect_timeout"):
+        asyncpg_url_and_args(f"postgresql://u:p@h/db?sslmode=disable&connect_timeout={value}")
+
+
+def test_issue_24_a_database_url_that_is_not_postgres_is_refused() -> None:
+    """It used to be rewritten to postgresql+asyncpg and fail later, further from the
+    mistake. Every parameter is checked; the scheme was reinterpreted."""
+    with pytest.raises(ValueError, match="mysql"):
+        asyncpg_url_and_args("mysql://u:p@h/db")
+
+
+def test_issue_25_an_invisible_character_anywhere_in_an_origin_is_refused() -> None:
+    """A zero-width space survives a copy-paste, is not ASCII whitespace, and leaves the
+    frontend blocked by CORS with nothing to explain it."""
+    with pytest.raises(ValueError):
+        bare_origin("https://app.example.com​")

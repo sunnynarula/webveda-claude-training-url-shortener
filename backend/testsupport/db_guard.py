@@ -41,6 +41,15 @@ def ensure_safe_test_database_url(url: str) -> None:
             f"the test database URL carries parameter(s) that could change what it "
             f"reaches: {', '.join(unexpected)}"
         )
+    if "," in parts.netloc:
+        # libpq and asyncpg accept a comma-separated host list and try each in turn.
+        # urlsplit reads the host as the text up to the first colon, so a list written
+        # with ports would show only its first entry here (issue #22).
+        raise UnsafeTestDatabaseError("the test database URL lists more than one host")
+    try:
+        _ = parts.port  # a port this parser cannot read means it cannot read the host either
+    except ValueError as exc:
+        raise UnsafeTestDatabaseError("the test database URL has an unreadable port") from exc
     if parts.hostname not in _SAFE_HOSTS:
         raise UnsafeTestDatabaseError(
             f"test database host {parts.hostname!r} is not one of {sorted(_SAFE_HOSTS)}"

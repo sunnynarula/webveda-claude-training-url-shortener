@@ -22,8 +22,13 @@ def bare_origin(value: str) -> str:
     whitespace before parsing, and lower-cases the host only in its own view of it,
     so returning the caller's string would store something we never validated.
     """
-    if any(ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
-        raise ValueError("must not contain spaces or control characters")
+    if not value.isascii() or any(
+        ch.isspace() or ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value
+    ):
+        raise ValueError(
+            "must be printable ASCII with no spaces: a host written in another script "
+            "goes in its punycode form, as ADR 0003 requires for submitted URLs"
+        )
     parts = urlsplit(value)
     host = parts.hostname  # lower-cased, and without the brackets of an IPv6 literal
     if parts.scheme not in {"http", "https"} or not host:
@@ -44,7 +49,14 @@ def bare_origin(value: str) -> str:
 class Settings(BaseSettings):
     """Runtime configuration (CLAUDE.md §10)."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # A rejected DATABASE_URL would otherwise be printed in full - password and all -
+        # in the startup traceback that lands in the platform's log (issue #21).
+        hide_input_in_errors=True,
+    )
 
     database_url: str
     redis_url: str
