@@ -46,7 +46,7 @@ async def always_raise() -> None:
 
 
 @contextlib.contextmanager
-def capturing_logs() -> Iterator[io.StringIO]:
+def capturing_logs(level: str = "INFO") -> Iterator[io.StringIO]:
     """Capture everything the logging handlers write, then put logging back.
 
     This is a context manager rather than a fixture on purpose: pytest re-installs its own
@@ -58,6 +58,9 @@ def capturing_logs() -> Iterator[io.StringIO]:
     original = sys.stdout
     sys.stdout = buffer
     try:
+        # Binds the handlers to the captured stream. This used to happen as a side
+        # effect of create_app; issue #18 made configuring logging the caller's job.
+        configure_logging(level)
         yield buffer
     finally:
         sys.stdout = original
@@ -101,11 +104,11 @@ def access_lines(buffer: io.StringIO) -> list[dict[str, Any]]:
 
 
 async def test_building_the_app_twice_does_not_double_the_log_lines(settings: Settings) -> None:
-    """`dictConfig` runs on every `create_app`. If it appended handlers instead of replacing
-    them, every line would be written once per app built -- and every test that builds an app
-    would make the duplication worse."""
+    """`configure_logging` calls `dictConfig`. If that appended handlers instead of
+    replacing them, every line would be written once per call -- and a process that
+    configures logging twice, as a reload or a test fixture does, would double it."""
     with capturing_logs() as log_stream:
-        create_app(settings)
+        configure_logging("INFO")
         app = build(settings)
 
         async with client_for(app) as client:
@@ -242,7 +245,7 @@ async def test_the_log_level_setting_reaches_the_app_and_uvicorn_loggers(
     like a way to quieten a noisy deployment rather than a way to lose its audit trail."""
     settings = make_settings(log_level="WARNING")
 
-    with capturing_logs() as log_stream:
+    with capturing_logs(settings.log_level) as log_stream:
         app = build(settings)
 
         async with client_for(app) as client:

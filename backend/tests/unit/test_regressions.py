@@ -6,6 +6,7 @@ marker named when an issue is closed: revert a fix and the test that fails tells
 which issue came back. Each test is the smallest reproduction of the original report.
 """
 
+import logging
 import ssl
 
 import httpx
@@ -149,3 +150,27 @@ def test_issue_15_a_mode_that_requires_tls_verifies_the_certificate(mode: str) -
     assert isinstance(context, ssl.SSLContext)
     assert context.verify_mode == ssl.CERT_REQUIRED
     assert context.check_hostname
+
+
+def test_issue_18_building_the_app_leaves_the_processs_logging_alone() -> None:
+    """create_app called dictConfig, which replaces the handlers of every logger in the
+    process - including those of whoever imported us. Configuring logging belongs to
+    whoever owns the process, which for us is `python -m app`."""
+    root = logging.getLogger()
+    marker = logging.NullHandler()
+    original = root.handlers[:]
+    root.handlers = [marker]
+    try:
+        create_app(
+            Settings(
+                _env_file=None,
+                database_url="postgresql://u:p@localhost/db",
+                redis_url="redis://localhost:6379/0",
+                public_base_url="https://sho.rt",
+                frontend_origin="https://app.sho.rt",
+                log_level="WARNING",
+            )
+        )
+        assert root.handlers == [marker], "create_app replaced the caller's log handlers"
+    finally:
+        root.handlers = original

@@ -9,7 +9,6 @@ from typing import Any
 import pytest
 
 import app.__main__ as entrypoint
-from app.logging_config import LOGGING_CONFIG
 
 ENVIRONMENT = {
     "DATABASE_URL": "postgresql://u:p@localhost/db",
@@ -32,14 +31,19 @@ def test_main_serves_the_factory_with_json_logs_and_no_uvicorn_access_log(
     def fake_run(target: str, **kwargs: Any) -> None:
         captured.update(kwargs, target=target)
 
+    configured: list[str] = []
+    monkeypatch.setattr(entrypoint, "configure_logging", configured.append)
     monkeypatch.setattr(entrypoint.uvicorn, "run", fake_run)
 
     entrypoint.main()
 
+    # Issue #18: this process is ours, so we configure logging, and tell uvicorn not to.
+    assert configured == ["WARNING"]
+
     assert captured["target"] == "app.main:create_app"
     assert captured["factory"] is True
     assert (captured["host"], captured["port"]) == ("127.0.0.1", 9123)
-    assert captured["log_config"] is LOGGING_CONFIG
+    assert captured["log_config"] is None
     assert captured["log_level"] == "warning"
     # uvicorn's own access line carries the query string; app.middleware logs the route instead.
     assert captured["access_log"] is False

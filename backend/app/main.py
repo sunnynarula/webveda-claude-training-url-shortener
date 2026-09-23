@@ -1,12 +1,15 @@
-"""Application factory. Run with `python -m app` (JSON logs) or
-`uvicorn app.main:create_app --factory`."""
+"""Application factory.
+
+`python -m app` runs it with JSON logging. `uvicorn app.main:create_app --factory`
+runs the same app, but logging is then uvicorn's to configure: pass --log-config,
+or use `python -m app` (issue #18).
+"""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings
 from app.errors import install_error_handlers
-from app.logging_config import configure_logging
 from app.middleware import CatchAllMiddleware, HeadAsGetMiddleware, RequestIdMiddleware
 from app.routers import health
 
@@ -14,7 +17,11 @@ from app.routers import health
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the app. Without explicit settings, they're read from the environment."""
     settings = settings or Settings()
-    configure_logging(settings.log_level)
+
+    # Logging is not configured here. dictConfig replaces the handlers of every logger in
+    # the process, including its caller's, and a factory exists to be called from someone
+    # else's process. `python -m app` owns its process and configures logging there; a
+    # `uvicorn app.main:create_app --factory` command needs --log-config (issue #18).
 
     # redirect_slashes off: with it on, /path/ is answered by a redirect built from the
     # client's own Host header, carrying the query string back with it, before any route

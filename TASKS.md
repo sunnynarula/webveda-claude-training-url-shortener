@@ -42,9 +42,11 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 
 *Interface*
 - `create_app(settings: Settings | None = None) -> FastAPI` in
-  `app/main.py`. Run it with `uvicorn app.main:create_app --factory`, or with
-  `python -m app`, which serves on `Settings.host`:`Settings.port` with JSON
-  logging.
+  `app/main.py`. `python -m app` serves it on `Settings.host`:`Settings.port`
+  with JSON logging. The factory itself configures no logging, because
+  `dictConfig` would replace the handlers of whatever process called it
+  (issue #18); `uvicorn app.main:create_app --factory` therefore needs
+  `--log-config` to get the same output.
 - `app.config.Settings` (pydantic-settings). Tests always construct it as
   `Settings(_env_file=None, ...)` and never read a developer's `.env`.
 - `GET /api/health/live` returns 200 `{"status": "ok"}`.
@@ -151,7 +153,7 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 tests found seven defects in what this slice ships and seven questions for
 later slices; two more came from reading source while implementing.
 
-- **Fixed in this slice:** #1 #2 #3 #4 #5 #6 #7 #8 #10 #11 #12 #15 #17. Each
+- **Fixed in this slice:** #1 #2 #3 #4 #5 #6 #7 #8 #10 #11 #12 #15 #17 #18, and #16. Each
   has a regression test named after it in
   `backend/tests/unit/test_regressions.py`, checked by reverting the fixes
   and confirming the right tests fail.
@@ -160,7 +162,7 @@ later slices; two more came from reading source while implementing.
   SQLAlchemy's `URL`, which masks the password when printed. Acceptance test
   4 changed with it, and says so in a comment.
 - **Deferred to the slice that owns them:** #14 (slice 3), #9 #13
-  (slice 6), #18 (low). Their held-out tests are parked with a note.
+  (slice 6). Their held-out tests are parked with a note.
 - **Process:** #16, on `red-check.py` reporting a legitimate RED run as a
   problem. Left until it happens a second time.
 
