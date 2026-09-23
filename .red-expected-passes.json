@@ -1,0 +1,3 @@
+{
+  "tests.test_settings::test_missing_origin_setting_is_a_settings_error": "Slice 1: the skeleton declares public_base_url and frontend_origin as required fields, so pydantic refuses to build Settings without them before any validator exists. Not vacuous - it fails if either field is given a default. Recorded in b7111d3, accepted in issue #16."
+}
