@@ -72,14 +72,24 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 - Logs are one JSON object per line, uvicorn's own lines included. One access
   line per request records `event="request"`, `request_id`, `method`, `route`
   (the template, never the query string), `status` and `duration_ms`.
-- `app.database.asyncpg_url_and_args(url) -> (url, connect_args)`:
-  - drops `sslmode` and `channel_binding` from the query
-  - maps `sslmode` values `require`, `verify-ca` and `verify-full` to TLS in
-    `connect_args`
-  - returns a `postgresql+asyncpg://` URL
+- `app.database.asyncpg_url_and_args(url) -> (url, connect_args)` returns a
+  `postgresql+asyncpg://` URL with no query string. Every query parameter is
+  translated or refused, never passed through (issue #11, ADR 0012):
+  - `sslmode` `require`, `verify-ca`, `verify-full` become an `SSLContext`
+    that verifies the chain and the hostname (issue #15); `disable`, `allow`
+    and `prefer` keep libpq's meaning; anything else, including an empty or
+    repeated value, is refused (issue #3)
+  - `channel_binding` is discarded: asyncpg cannot do it (ADR 0010)
+  - `options` and `application_name` become `server_settings`,
+    `connect_timeout` becomes `timeout`, `target_session_attrs` passes through
+  - `sslrootcert` and any other parameter are refused by name
 - Test-database guard: `testsupport.db_guard.ensure_safe_test_database_url(url)`
   raises `UnsafeTestDatabaseError` unless the database name ends in `_test` and
   the host is `localhost`, `127.0.0.1`, `::1` or `postgres` (the CI service).
+  A `#` is refused outright, and only `sslmode`, `connect_timeout` and
+  `application_name` may appear in the query (issues #6, #7).
+- `HEAD` is answered wherever `GET` is, with the same headers and no body, and
+  a trailing slash is a 404 rather than a redirect (issues #8, #10).
 
 *Acceptance tests*
 1. With valid settings the app boots, and `GET /api/health/live` returns 200
@@ -129,7 +139,7 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 - [x] 3 GREEN — 88 tests pass, 100% branch coverage (`5bf33ee`)
 - [x] 4 REFACTOR (`04ce27b`)
 - [x] 5 README — every command in it was run (`1162450`)
-- [ ] 6 Gates and held-out tests
+- [x] 6 Gates and held-out tests — 206 held-out tests, 48 failures, 18 issues
 - [ ] 7 Reviews (verification + security, in parallel)
 - [ ] 8 Findings decided
 - [ ] 9 Push and PR
