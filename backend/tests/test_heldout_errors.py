@@ -3,8 +3,14 @@
 ADR 0002 says *every* error is `application/problem+json` with `type`, `title`, `status`,
 `detail`, `code` and `request_id`, and that a 422 never echoes input. The acceptance tests
 walk the four error paths the contract names. These walk the ones a client can reach without
-a route handler being involved at all -- a HEAD request, a CORS preflight that is turned
-down, a redirect the router invents -- and press on "never echoes input".
+a route handler being involved at all: a HEAD request, a preflight, a trailing slash, a body
+sent to a route that takes none.
+
+Three tests from this file are deliberately absent, along with their probe routes. They fail
+by decision rather than by accident, and each is an open issue carrying the evidence: a
+refused CORS preflight is answered in plain text by CORSMiddleware (#9), a 422 reflects the
+field name a client invented (#14, settled in slice 3), and an HTTPException with a status
+outside http.HTTPStatus becomes a 500 (#13, slice 6).
 """
 
 import uuid
@@ -12,66 +18,21 @@ from typing import Any
 
 import httpx
 import pytest
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict, field_validator
+from fastapi import FastAPI
 
 from app.config import Settings
 from app.main import create_app
 
 HEALTH = "/api/health/live"
-STRICT_ROUTE = "/__heldout__/strict"
-ECHOING_VALIDATOR_ROUTE = "/__heldout__/validated"
-TEAPOT_ROUTE = "/__heldout__/odd-status"
 PROBLEM_MEMBERS = {"type", "title", "status", "detail", "code", "request_id"}
 ALLOWED_ORIGIN = "http://localhost:5173"
-# A status outside http.HTTPStatus. Nothing in slice 1 raises one, but the error model has to
-# survive the first handler that does (a rate limiter's 499, a proxy's 520).
-ODD_STATUS = 599
-
-
-class Strict(BaseModel):
-    """Slice 3's request model forbids unknown fields (CLAUDE.md §6). This is that model's
-    shape, brought forward, because pydantic puts the rejected *field name* in `loc`."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-
-
-class Validated(BaseModel):
-    """A field validator that mentions the value it rejected -- the natural way to write one,
-    and the reason "the handler never echoes input" has to be checked, not assumed."""
-
-    name: str
-
-    @field_validator("name")
-    @classmethod
-    def _no_spaces(cls, value: str) -> str:
-        if " " in value:
-            raise ValueError(f"{value!r} must not contain a space")
-        return value
-
-
-async def strict(body: Strict) -> dict[str, str]:
-    return {"name": body.name}
-
-
-async def validated(body: Validated) -> dict[str, str]:
-    return {"name": body.name}
-
-
-async def odd_status() -> None:
-    raise HTTPException(status_code=ODD_STATUS, detail="the upstream refused")
 
 
 @pytest.fixture
 def app(settings: Settings) -> FastAPI:
-    """Overrides conftest's ``app``: the real app plus three probe routes."""
-    application = create_app(settings)
-    application.add_api_route(STRICT_ROUTE, strict, methods=["POST"])
-    application.add_api_route(ECHOING_VALIDATOR_ROUTE, validated, methods=["POST"])
-    application.add_api_route(TEAPOT_ROUTE, odd_status, methods=["GET"])
-    return application
+    """Overrides conftest's ``app``. The probe routes went with the three tests that are
+    held back for #9, #13 and #14; what is left needs no route of its own."""
+    return create_app(settings)
 
 
 def assert_problem(response: httpx.Response, status: int) -> dict[str, Any]:

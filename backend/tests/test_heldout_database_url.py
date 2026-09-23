@@ -78,6 +78,14 @@ def test_no_libpq_only_parameter_survives_into_asyncpg_connect(parameter: str) -
     assert not unknown, f"asyncpg.connect would raise TypeError for {sorted(unknown)}"
 
 
+def test_sslrootcert_is_refused_rather_than_honoured() -> None:
+    """Decided while fixing #11: honouring it would make this function read a file, so a
+    URL translation would depend on the filesystem and fail at a distance. The deploy
+    target uses public certificate authorities; a private CA is a slice 9 decision."""
+    with pytest.raises(ValueError, match="system trust store"):
+        asyncpg_url_and_args(f"{NEON}?sslmode=verify-full&sslrootcert=%2Fetc%2Fssl%2Fca.pem")
+
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -191,5 +199,5 @@ def test_channel_binding_is_always_removed(query: str) -> None:
     first connection fails. Dropping it is a known, recorded loss of protection."""
     url, _ = asyncpg_url_and_args(f"{NEON}?{query}")
 
-    assert "channel_binding" not in url
+    assert "channel_binding" not in str(url), "the parameter survived into the URL"
     assert make_url(url).query == {}

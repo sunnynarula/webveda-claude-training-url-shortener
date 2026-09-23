@@ -35,7 +35,7 @@ def test_issue_1_an_origin_never_keeps_an_invisible_character() -> None:
     the caller's string rather than the one that had been validated."""
     with pytest.raises(ValueError, match="printable ASCII"):
         bare_origin("https://sho.rt\n")
-    assert "\t" not in bare_origin("https://sho.rt")
+    assert bare_origin("https://sho.rt") == "https://sho.rt", "a clean origin still passes"
 
 
 async def test_issue_2_a_capitalised_frontend_origin_still_matches_the_browser() -> None:

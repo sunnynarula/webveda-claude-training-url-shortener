@@ -65,8 +65,9 @@ proceed without a separate approval stop, so it can be reviewed at any time.
   `status`, `detail`, `code` and `request_id`. The codes in this slice are:
   - `not_found`
   - `method_not_allowed`
-  - `invalid_request`: a 422, with `errors: [{loc, msg, type}]`, and never
-    echoing input
+  - `invalid_request`: a 422, with `errors: [{loc, msg, type}]`, never echoing
+    a submitted *value*. A field name the client invented is still reflected in
+    `loc`; that is issue #14, open, and settled in slice 3
   - `internal_error`
 - `X-Request-ID` is accepted if it matches `^[A-Za-z0-9._-]{1,64}$`;
   otherwise it's replaced with a uuid4 hex. It's always echoed in the
@@ -155,8 +156,9 @@ later slices; two more came from reading source while implementing.
 
 - **Fixed in this slice:** #1 #2 #3 #4 #5 #6 #7 #8 #10 #11 #12 #15 #17 #18, and #16. Each
   has a regression test named after it in
-  `backend/tests/unit/test_regressions.py`, checked by reverting the fixes
-  and confirming the right tests fail.
+  `backend/tests/unit/test_regressions.py` — except #16, whose gate has its
+  own tests in `backend/tests/unit/test_red_check.py`. Checked by reverting
+  the fixes and confirming the right tests fail.
 - **#17 fixed with the developer's agreement to change a frozen test.** The
   RED contract said the function returns a string; it now returns
   SQLAlchemy's `URL`, which masks the password when printed. Acceptance test

@@ -3,12 +3,13 @@
 Acceptance test 7 runs the real server and checks that every line is JSON, that one access
 line names the route, and that the query string never appears. These tests take the same
 claims apart in-process, where a failure names the line that broke, and push on the parts a
-single smoke request cannot reach: a multi-line traceback, a second `create_app` doubling the
-handlers, the path as opposed to the query string, an ID that was rejected, and overlapping
-requests each keeping their own ID.
+single smoke request cannot reach: a multi-line traceback, configuring logging twice and
+doubling the handlers, the path as opposed to the query string, an ID that was rejected,
+and overlapping requests each keeping their own ID.
 
-The logging config writes to `ext://sys.stdout`, resolved when `create_app` calls
-`dictConfig`. Replacing `sys.stdout` before that call is therefore enough to capture it.
+The logging config writes to `ext://sys.stdout`, resolved when `configure_logging` calls
+`dictConfig` - which since #18 is the caller's job, not the app factory's. Replacing
+`sys.stdout` before that call is therefore enough to capture it.
 """
 
 import asyncio
@@ -68,8 +69,8 @@ def capturing_logs(level: str = "INFO") -> Iterator[io.StringIO]:
 
 
 def build(settings: Settings) -> FastAPI:
-    """An app with the two probe routes. Built inside the capture block so its handlers are
-    bound to the captured stream."""
+    """An app with the two probe routes. Built inside the capture block, which is where
+    logging is configured and so where the handlers bind to the captured stream."""
     application = create_app(settings)
     application.add_api_route(SLOW_ROUTE, slow, methods=["GET"])
     application.add_api_route(RAISE_ROUTE, always_raise, methods=["GET"])
