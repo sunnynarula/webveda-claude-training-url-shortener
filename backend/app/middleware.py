@@ -92,6 +92,38 @@ class RequestIdMiddleware:
             request_id_var.reset(token)
 
 
+class HeadAsGetMiddleware:
+    """Answer HEAD as GET, with the same headers and no body (RFC 9110 §9.3.2).
+
+    Not done by naming both methods on each route: FastAPI then generates two OpenAPI
+    operations sharing one operation id, which breaks the client types generated from
+    the schema. Here it costs one operation per route and covers every GET route,
+    including the redirect in slice 4, which must answer HEAD without counting a click.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "HEAD":
+            await self.app(scope, receive, send)
+            return
+
+        body_sent = False
+
+        async def send_without_body(message: Message) -> None:
+            nonlocal body_sent
+            if message["type"] == "http.response.body":
+                if body_sent:  # a streaming response: the rest of its chunks are dropped
+                    return
+                body_sent = True
+                message = {**message, "body": b"", "more_body": False}
+            await send(message)
+
+        # The outer scope still says HEAD, so the access log records what was asked for.
+        await self.app({**scope, "method": "GET"}, receive, send_without_body)
+
+
 class CatchAllMiddleware:
     """Innermost. Turn any unhandled exception into the JSON 500 of ADR 0002, so the
     request-ID and CORS middleware outside it still add their headers."""
