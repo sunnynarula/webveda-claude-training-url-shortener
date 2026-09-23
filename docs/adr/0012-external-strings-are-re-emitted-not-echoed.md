@@ -4,9 +4,12 @@ Status: accepted, 2026-09-23 (triage of the slice 1 held-out review, issues #1�
 
 ## Context
 
-The held-out tests for slice 1 produced sixteen findings, and eighteen once
-this triage added two more. Twelve of them are **one mistake made in three
-places**:
+The held-out tests for slice 1 produced fourteen findings. Two more came from
+reading library source while implementing, and this triage added two, making
+eighteen issues in all. **Eight of them are one mistake made in three places**,
+and they are the eight named in the table below — the count and the table were
+written from the same list this time, the first version of this paragraph having
+claimed twelve against a table of eight:
 
 | Where | What it does | Issues |
 |---|---|---|
@@ -81,4 +84,9 @@ an environment variable, a connection URL, a request field:
   field name it was given (#14).
 - ADR 0003 (canonical URLs) — the same rule, decided earlier for user URLs.
 - ADR 0010 (deploy target) — the Neon connection URL is where rules 2 and 3
-  are load-bearing (#11, #15).
+  are load-bearing (#11, #15, #20).
+- The review round that followed found four more instances of the same rules:
+  a URL with no `sslmode` at all (#20, rule 3), a host list the guard's parser
+  could not see past (#22, rule 4), a scheme rewritten rather than checked
+  (#24, rule 2) and an invisible character outside ASCII (#25, rule 1). The
+  rules held; the first pass applying them did not reach far enough.

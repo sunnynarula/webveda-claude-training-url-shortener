@@ -47,9 +47,11 @@ installs the right Python (3.12) itself.
    ```
 
 3. **Run every check CI runs** — lint, formatting, types, tests with branch
-   coverage, the suppression ratchet and the licence gate:
+   coverage, the suppression ratchet and the licence gate. It is run from the
+   repository root, not from `backend/`:
 
    ```bash
+   cd ..
    scripts/check.sh
    ```
 
@@ -76,8 +78,10 @@ one. The tests never read either `.env` file.
 
 `PUBLIC_BASE_URL` and `FRONTEND_ORIGIN` must be bare origins: a scheme and a
 host with an optional port, and no path, query or fragment. They must use
-`https`, except that `http` is allowed for `localhost` and `127.0.0.1`. The
-app refuses to start otherwise.
+`https`, except that `http` is allowed for the local hosts: `localhost`,
+`127.0.0.1` and `[::1]`. They must also be printable ASCII, so a host written
+in another script goes in its punycode form. The app refuses to start
+otherwise.
 
 The root [`.env.example`](.env.example) holds the Compose variables
 (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`).

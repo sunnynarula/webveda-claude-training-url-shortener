@@ -39,9 +39,15 @@ Separately, Vercel's Hobby plan is for non-commercial, personal use only.
   - Note also that `ssl="verify-full"` as a *string* makes asyncpg look for
     `PGSSLROOTCERT` or `~/.postgresql/root.crt` and raise if neither exists.
     It does not fall back to the system trust store.
-  - **Candidate fix, untested:** pass an `ssl.SSLContext` from
-    `ssl.create_default_context()` in `connect_args` instead of a mode string,
-    which verifies the certificate chain and the hostname against the system
-    CA store. To be decided and tested in slice 9, against the real database.
+  - **Settled in slice 1, not slice 9** (issues #15 and #20): `require`,
+    `verify-ca` and `verify-full` all build an `ssl.SSLContext` from
+    `ssl.create_default_context()`, which verifies the chain and the hostname
+    against the system CA store — and a URL for a non-loopback host with no
+    `sslmode` at all gets the same treatment, because absence is not consent.
+    Stricter than libpq's `require`, deliberately: with channel binding
+    unavailable, certificate verification is the only protection left.
+  - **Still owed in slice 9:** confirming this against the real endpoint, and
+    deciding what a private certificate authority would need (`sslrootcert` is
+    refused today, so that a URL translation never reads a file).
 - Whether the hosted instance is a free demo or a paid production setup is
   decided at step 17.
