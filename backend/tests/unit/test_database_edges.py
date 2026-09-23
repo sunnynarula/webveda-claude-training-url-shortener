@@ -16,9 +16,18 @@ def test_password_survives_the_round_trip() -> None:
     assert url == "postgresql+asyncpg://u:s%40cret@localhost/db"
 
 
-def test_other_query_parameters_are_kept() -> None:
-    url, _ = asyncpg_url_and_args("postgresql://u:p@h/db?sslmode=require&application_name=x")
-    assert url == "postgresql+asyncpg://u:p@h/db?application_name=x"
+def test_a_parameter_asyncpg_understands_is_translated_not_passed_through() -> None:
+    """This test used to assert that unknown parameters were kept in the URL. Issue #11
+    showed that SQLAlchemy hands every one of them to asyncpg.connect, which has no
+    **kwargs, so keeping them meant a TypeError on the first connection in production."""
+    url, args = asyncpg_url_and_args("postgresql://u:p@h/db?sslmode=disable&application_name=x")
+    assert url == "postgresql+asyncpg://u:p@h/db"
+    assert args["server_settings"] == {"application_name": "x"}
+
+
+def test_a_parameter_nobody_understands_is_refused() -> None:
+    with pytest.raises(ValueError, match="unsupported database URL parameter"):
+        asyncpg_url_and_args("postgresql://u:p@h/db?made_up=1")
 
 
 def test_non_tls_sslmode_passes_through() -> None:

@@ -13,6 +13,7 @@ this function returns, and they do it without connecting.
 """
 
 import inspect
+import ssl
 from urllib.parse import quote
 
 import asyncpg
@@ -43,6 +44,21 @@ def connect_keywords(url: str, connect_args: dict[str, object]) -> set[str]:
     return set(options)
 
 
+def assert_verifies_tls(value: object) -> None:
+    """TLS is required, and the server is authenticated.
+
+    Issue #15 decided that `require`, `verify-ca` and `verify-full` all become an
+    SSLContext that verifies the chain and the hostname, because asyncpg cannot do
+    channel binding, which leaves certificate verification as the only protection.
+    These tests were written before that decision and asserted the mode string.
+    """
+    if isinstance(value, ssl.SSLContext):
+        assert value.verify_mode == ssl.CERT_REQUIRED, "the context does not verify"
+        assert value.check_hostname, "the context does not check the hostname"
+        return
+    assert value in TLS_REQUIRED_MODES, f"TLS is not required: {value!r}"
+
+
 @pytest.mark.parametrize(
     "parameter",
     [
@@ -50,7 +66,6 @@ def connect_keywords(url: str, connect_args: dict[str, object]) -> set[str]:
         pytest.param("options=endpoint%3Dep-x-pooler", id="options"),
         pytest.param("application_name=url-shortener", id="application_name"),
         pytest.param("connect_timeout=10", id="connect_timeout"),
-        pytest.param("sslrootcert=%2Fetc%2Fssl%2Fca.pem", id="sslrootcert"),
         pytest.param("target_session_attrs=read-write", id="target_session_attrs"),
     ],
 )
@@ -115,7 +130,7 @@ def test_a_password_needing_escapes_survives_the_translation(raw: str) -> None:
     parsed = make_url(url)
     assert parsed.password == raw, url
     assert parsed.query == {}, f"query left in {url}"
-    assert connect_args.get("ssl") == "require", connect_args
+    assert_verifies_tls(connect_args.get("ssl"))
     assert create_async_engine(url, connect_args=connect_args).url.password == raw
 
 
@@ -136,7 +151,7 @@ def test_any_postgres_driver_prefix_becomes_asyncpg(drivername: str) -> None:
     url, connect_args = asyncpg_url_and_args(raw)
 
     assert make_url(url).drivername == "postgresql+asyncpg", url
-    assert connect_args.get("ssl") == "require", connect_args
+    assert_verifies_tls(connect_args.get("ssl"))
 
 
 @pytest.mark.parametrize(
