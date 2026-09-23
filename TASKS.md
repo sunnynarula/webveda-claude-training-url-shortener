@@ -55,8 +55,10 @@ proceed without a separate approval stop, so it can be reviewed at any time.
     `PORT` (default `8000`)
   - `PUBLIC_BASE_URL` and `FRONTEND_ORIGIN` must be bare origins: a scheme
     and host, with an optional port, and no path, query or fragment. They
-    must be `https`, except that `http` is allowed for `localhost` and
-    `127.0.0.1`.
+    must be `https`, except that `http` is allowed for the local hosts:
+    `localhost`, `127.0.0.1` and `[::1]` (issue #12). The value stored is
+    rebuilt from the parts that were checked, so a capitalised host is
+    stored lower-cased and an invisible character is refused (issue #1).
 - Errors follow RFC 9457 (`application/problem+json`): `type`, `title`,
   `status`, `detail`, `code` and `request_id`. The codes in this slice are:
   - `not_found`
@@ -137,15 +139,21 @@ proceed without a separate approval stop, so it can be reviewed at any time.
 tests found seven defects in what this slice ships and seven questions for
 later slices; two more came from reading source while implementing.
 
-- Open for **this** slice, awaiting the developer's decision: #1 #2 #3 #4
-  #5 #6 #7 (defects), #12 (contract wording).
-- Later slices: #14 (slice 3), #8 #10 (slice 4), #9 #13 (slice 6),
-  #11 #15 (slice 9). #15 must be settled before the first real deployment.
-- Process: #16, on `red-check.py` reporting a legitimate RED run as a
-  problem.
+- **Fixed in this slice:** #1 #2 #3 #4 #5 #6 #7 #8 #10 #11 #12 #15. Each
+  has a regression test named after it in
+  `backend/tests/unit/test_regressions.py`, checked by reverting the fixes
+  and confirming the right tests fail.
+- **Blocked, needs a decision:** #17 — returning the database URL as
+  SQLAlchemy's masking object instead of a plain string collides with a
+  frozen acceptance test from RED, which asserts a string carrying the
+  password.
+- **Deferred to the slice that owns them:** #14 (slice 3), #9 #13
+  (slice 6), #18 (low). Their held-out tests are parked with a note.
+- **Process:** #16, on `red-check.py` reporting a legitimate RED run as a
+  problem. Left until it happens a second time.
 
-The held-out tests that prove #1–#7 are written and parked; they land as
-the failing tests of whichever fixes are accepted.
+The triage behind all of this is ADR 0012: twelve of the eighteen were
+one mistake in three places.
 
 ## Slices 2–9
 
